@@ -11,7 +11,8 @@ set -euo pipefail
 #   1. Patches /usr/config/rasqberry_environment.env (LED_MATRIX_LAYOUT, Y_FLIP)
 #   2. Installs patched rq_led_utils.py with triple_8x8 mapping to /usr/bin/
 #   3. Patches LED Painter's LED_array_indices.py (if installed)
-#   4. Copies adapted IBM demo to RQB2-bin/
+#   4. Patches virtual LED GUI with triple_8x8 mapping
+#   5. Copies adapted IBM demo to /usr/bin/
 #
 # Usage:  sudo bash apply.sh
 #         sudo bash apply.sh --dry-run    (show what would be changed)
@@ -24,6 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #   and RQB2-config/* to /usr/config/. Demos clone into ~/RasQberry-Two/demos/.
 ENV_FILE="/usr/config/rasqberry_environment.env"
 LED_UTILS_DEST="/usr/bin/rq_led_utils.py"
+VIRTUAL_GUI_DEST="/usr/bin/rq_led_virtual_gui.py"
 IBM_DEMO_DEST="/usr/bin/neopixel_spi_IBMtestFunc_3x8x8.py"
 
 # Detect user home (rasqberry on image, or current user)
@@ -36,6 +38,7 @@ PAINTER_DIR="$RASQBERRY_HOME/RasQberry-Two/demos/led-painter"
 
 # Source files (in same directory as this script)
 SRC_LED_UTILS="$SCRIPT_DIR/rq_led_utils_3x8x8.py"
+SRC_VIRTUAL_GUI="$SCRIPT_DIR/rq_led_virtual_gui_3x8x8.py"
 SRC_ARRAY_INDICES="$SCRIPT_DIR/LED_array_indices_3x8x8.py"
 SRC_IBM_DEMO="$SCRIPT_DIR/neopixel_spi_IBMtestFunc_3x8x8.py"
 
@@ -113,6 +116,7 @@ if $REVERT; then
     restore_backup "$ENV_FILE"
     restore_backup "$LED_UTILS_DEST"
     [ -f "$PAINTER_DIR/LED_array_indices.py" ] && restore_backup "$PAINTER_DIR/LED_array_indices.py"
+    restore_backup "$VIRTUAL_GUI_DEST"
     restore_backup "$IBM_DEMO_DEST"
     echo ""
     info "Revert complete. Original quad/single panel layout restored."
@@ -121,7 +125,7 @@ fi
 
 # --- Verify source files exist ---
 
-for f in "$SRC_LED_UTILS" "$SRC_ARRAY_INDICES" "$SRC_IBM_DEMO"; do
+for f in "$SRC_LED_UTILS" "$SRC_VIRTUAL_GUI" "$SRC_ARRAY_INDICES" "$SRC_IBM_DEMO"; do
     [ -f "$f" ] || fail "Missing source file: $f"
 done
 
@@ -174,9 +178,25 @@ else
     skip "LED Painter not installed at $PAINTER_DIR (run it once to install, then re-run this script)"
 fi
 
-# --- 4. Copy IBM demo to /usr/bin/ (where RQB2-bin/* is installed) ---
+# --- 4. Patch virtual LED GUI ---
 
-echo "4. Installing adapted IBM demo ..."
+echo "4. Patching virtual LED GUI ..."
+
+if [ -f "$VIRTUAL_GUI_DEST" ]; then
+    backup_and_copy "$SRC_VIRTUAL_GUI" "$VIRTUAL_GUI_DEST"
+    $DRY_RUN || info "Virtual LED GUI patched at $VIRTUAL_GUI_DEST"
+else
+    if $DRY_RUN; then
+        echo "  would create: $VIRTUAL_GUI_DEST"
+    else
+        cp "$SRC_VIRTUAL_GUI" "$VIRTUAL_GUI_DEST"
+        info "Created $VIRTUAL_GUI_DEST (was not present)"
+    fi
+fi
+
+# --- 5. Copy IBM demo to /usr/bin/ (where RQB2-bin/* is installed) ---
+
+echo "5. Installing adapted IBM demo ..."
 
 if $DRY_RUN; then
     echo "  would copy: $SRC_IBM_DEMO -> $IBM_DEMO_DEST"
