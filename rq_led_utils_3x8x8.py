@@ -445,7 +445,8 @@ def map_xy_to_pixel_triple_8x8(x, y):
 
     Each panel's wiring (progressive, NOT serpentine):
     - All rows go left to right
-    - Pixel 0 at top-left corner
+    - Pixel 0 at bottom-left corner (panels mounted upside-down)
+    - Y is flipped: logical row 0 (top) maps to physical row 7 (bottom)
 
     Args:
         x (int): Column index (0-23, left to right)
@@ -460,8 +461,9 @@ def map_xy_to_pixel_triple_8x8(x, y):
 
     panel = x // 8
     col_in_panel = x % 8
+    flipped_y = 7 - y
 
-    return panel * 64 + y * 8 + col_in_panel
+    return panel * 64 + flipped_y * 8 + col_in_panel
 
 
 def map_xy_to_pixel(x, y, layout=None):

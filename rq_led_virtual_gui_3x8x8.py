@@ -190,11 +190,12 @@ class VirtualLEDMatrix:
         Map (x, y) coordinates to pixel index for 3x WS2812B-64 (8x8) panels.
 
         Three 8x8 panels daisy-chained left-to-right, progressive row wiring
-        (all rows left-to-right, no serpentine).
+        (all rows left-to-right, no serpentine, Y flipped).
         """
         panel = x // 8
         col_in_panel = x % 8
-        return panel * 64 + y * 8 + col_in_panel
+        flipped_y = 7 - y
+        return panel * 64 + flipped_y * 8 + col_in_panel
 
     def map_xy_to_pixel_quad(self, x, y):
         """

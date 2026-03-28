@@ -3,7 +3,8 @@ LED Array Indices for 3x WS2812B-64 (8x8) panels, daisy-chained left-to-right.
 
 Each panel uses progressive (non-serpentine) row wiring:
   - All rows go left to right
-  - Pixel 0 at top-left corner of each panel
+  - Pixel 0 at bottom-left corner (panels mounted upside-down)
+  - Y is flipped: logical row 0 (top) maps to physical row 7
 
 Panel chaining: Panel 0 (pixels 0-63) -> Panel 1 (64-127) -> Panel 2 (128-191)
 
@@ -20,7 +21,8 @@ for _i in range(192):
     _x = _i % 24         # column (0-23)
     _panel = _x // 8
     _col = _x % 8
-    LED_ARRAY_INDICES[_i] = _panel * 64 + _y * 8 + _col
+    _flipped_y = 7 - _y
+    LED_ARRAY_INDICES[_i] = _panel * 64 + _flipped_y * 8 + _col
 
 # Clean up loop variables
-del _i, _y, _x, _panel, _col
+del _i, _y, _x, _panel, _col, _flipped_y

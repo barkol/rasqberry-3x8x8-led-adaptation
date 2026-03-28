@@ -32,12 +32,13 @@ def plotcalc(y, x, color, pixels, rainbow):
     """Map logical coordinate (y, x) to physical LED index for 3x WS2812B-64 panels.
 
     Panels are 8x8, daisy-chained left-to-right, progressive row wiring
-    (all rows left-to-right, no serpentine).
+    (all rows left-to-right, no serpentine, Y flipped).
     """
     panel = x // 8
     col_in_panel = x % 8
+    flipped_y = 7 - y
 
-    i = panel * 64 + y * 8 + col_in_panel
+    i = panel * 64 + flipped_y * 8 + col_in_panel
 
     if rainbow:
       if (y == 7):
