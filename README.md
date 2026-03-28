@@ -1,6 +1,11 @@
 # 3x WS2812B-64 (8x8) Panel Adaptation for RasQberry-Two
 
-![3x 8x8 LED panels connected to RasQberry](three_8x8.jpg)
+![Wrong LED addressing with 3x 8x8 panels — the problem this repo fixes](three_8x8.jpg)
+
+*The image above shows the incorrect LED addressing that occurs when running
+RasQberry-Two demos on 3x 8x8 WS2812B panels without this adaptation — the
+pixel mapping is wrong because the original code assumes a different panel
+layout.*
 
 Adapts [RasQberry-Two](https://github.com/JanLahmann/RasQberry-Two) LED demos
 for **3 daisy-chained WS2812B-64 8x8 panels** instead of the original quad 4x12
