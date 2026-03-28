@@ -5,105 +5,144 @@ Diagnostic script to determine the physical wiring order of WS2812B LED panels.
 Run on the Raspberry Pi with panels connected. Lights up pixels one at a time
 so you can observe the physical layout and serpentine pattern.
 
-Usage:
-    sudo python3 diagnose_wiring.py
+Uses SPI (GPIO 10) directly — no rq_led_utils dependency, no GPIO conflicts.
 
-Watch the panels and note:
-  - Where pixel 0 lights up (which corner, which panel)
-  - Which direction pixels 0-7 travel (row or column? left/right? up/down?)
-  - Whether pixels 8-15 reverse direction (serpentine) or continue straight
-  - Where pixel 64 starts (second panel)
+Usage:
+    # Stop any running LED services first:
+    sudo systemctl stop rasqberry-led 2>/dev/null; sudo systemctl stop rasqberry-virtual-led 2>/dev/null
+    # Then run (no sudo needed for SPI):
+    /home/rasqberry/RasQberry-Two/venv/RQB2/bin/python3 diagnose_wiring.py
 """
 
 import sys
 import time
 
-sys.path.insert(0, '/usr/bin')
+try:
+    import board
+    import neopixel_spi as neopixel
+except ImportError:
+    print("ERROR: neopixel_spi not installed. Run with the RQB2 venv python:")
+    print("  /home/rasqberry/RasQberry-Two/venv/RQB2/bin/python3 diagnose_wiring.py")
+    sys.exit(1)
 
-from rq_led_utils import get_pixels
-
+NUM_PIXELS = 192
 PAUSE = 0.8
 BRIGHTNESS = 0.3
 
+spi = board.SPI()
+pixels = neopixel.NeoPixel_SPI(
+    spi, NUM_PIXELS, pixel_order=neopixel.GRB,
+    auto_write=False, brightness=BRIGHTNESS
+)
 
-def test_first_16(pixels):
+
+def clear():
+    pixels.fill(0)
+    pixels.show()
+
+
+def test_panel_boundaries():
+    """Light first pixel of each panel to confirm chaining order."""
+    print("=== Test 1: Panel boundaries (pixel 0, 64, 128) ===")
+    print("Three LEDs should light, one per panel.\n")
+
+    clear()
+    pixels[0] = (255, 0, 0)
+    pixels[64] = (0, 255, 0)
+    pixels[128] = (0, 0, 255)
+    pixels.show()
+
+    print("  pixel   0 = RED    (expected: panel 0 / leftmost)")
+    print("  pixel  64 = GREEN  (expected: panel 1 / middle)")
+    print("  pixel 128 = BLUE   (expected: panel 2 / rightmost)")
+    print()
+    print("  Q1: Are the panels left=RED, middle=GREEN, right=BLUE?")
+    print("  Q2: Or is the order different? Note the actual order.")
+
+    input("\nPress Enter to continue...\n")
+    clear()
+
+
+def test_first_16():
     """Light pixels 0-15 one by one to reveal serpentine direction."""
-    print("=== Test 1: First 16 pixels (row 0 and row 1 of panel 0) ===")
+    print("=== Test 2: First 16 pixels of panel 0 ===")
     print("Watch which corner pixel 0 starts at and how 0-7 vs 8-15 flow.\n")
 
     for i in range(16):
-        pixels.fill((0, 0, 0))
+        clear()
         pixels[i] = (255, 0, 0) if i < 8 else (0, 255, 0)
         pixels.show()
         label = "RED" if i < 8 else "GREEN"
         print(f"  pixel {i:3d}  ({label})")
         time.sleep(PAUSE)
 
-    pixels.fill((0, 0, 0))
-    pixels.show()
-    input("\nPress Enter to continue...\n")
-
-
-def test_panel_boundaries(pixels):
-    """Light first pixel of each panel to confirm chaining order."""
-    print("=== Test 2: Panel boundaries (pixel 0, 64, 128) ===")
-    print("Three LEDs should light, one per panel.\n")
-
-    pixels.fill((0, 0, 0))
-    pixels[0] = (255, 0, 0)     # Panel 0 - RED
-    pixels[64] = (0, 255, 0)    # Panel 1 - GREEN
-    pixels[128] = (0, 0, 255)   # Panel 2 - BLUE
-    pixels.show()
-
-    print("  pixel   0 = RED    (should be panel 0 / leftmost)")
-    print("  pixel  64 = GREEN  (should be panel 1 / middle)")
-    print("  pixel 128 = BLUE   (should be panel 2 / rightmost)")
+    clear()
+    print()
+    print("  Q3: Where did pixel 0 light? (e.g. top-left corner)")
+    print("  Q4: Did 0->7 go left-to-right or top-to-bottom?")
+    print("  Q5: Did 8->15 reverse direction (serpentine)?")
 
     input("\nPress Enter to continue...\n")
 
-    pixels.fill((0, 0, 0))
+
+def test_corners():
+    """Light key pixels to confirm orientation."""
+    print("=== Test 3: Key pixels on panel 0 ===")
+    print("Four LEDs on panel 0 to identify corners.\n")
+
+    clear()
+    pixels[0] = (255, 0, 0)       # RED
+    pixels[7] = (0, 255, 0)       # GREEN
+    pixels[8] = (0, 0, 255)       # BLUE
+    pixels[63] = (255, 255, 0)    # YELLOW
     pixels.show()
 
+    print("  pixel  0 = RED      (first pixel)")
+    print("  pixel  7 = GREEN    (end of first group of 8)")
+    print("  pixel  8 = BLUE     (start of second group of 8)")
+    print("  pixel 63 = YELLOW   (last pixel of panel 0)")
+    print()
+    print("  Q6: Which corners do these occupy?")
 
-def test_corners(pixels):
-    """Light corners of the full grid to confirm orientation."""
-    print("=== Test 3: Grid corners ===")
-    print("Four LEDs at the expected corners of the 8x24 grid.\n")
+    input("\nPress Enter to continue...\n")
+    clear()
 
-    # If standard row-serpentine 8x8 panels, the corners are:
-    #   Top-left:     pixel 0   (panel 0, row 0, col 0)
-    #   Top-right:    pixel 135 (panel 2, row 0, col 7)
-    #   Bottom-left:  pixel 56  (panel 0, row 7, col 0... or 63 if reversed)
-    #   Bottom-right: pixel 191 or 184 depending on serpentine
 
-    # Instead, just light the raw indices and let the user report
-    corners = [
-        (0, (255, 0, 0), "pixel 0   (RED)    - expected: top-left of panel 0"),
-        (7, (0, 255, 0), "pixel 7   (GREEN)  - expected: end of first row, panel 0"),
-        (8, (0, 0, 255), "pixel 8   (BLUE)   - expected: start of second row, panel 0"),
-        (63, (255, 255, 0), "pixel 63  (YELLOW) - expected: last pixel of panel 0"),
+def test_rows():
+    """Light 8 pixels at a time within panel 0."""
+    print("=== Test 4: Groups of 8 on panel 0 ===")
+    print("Each group of 8 pixels lights in a different color.")
+    print("If row-serpentine: each group = one horizontal row.\n")
+
+    colors = [
+        (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
+        (255, 0, 255), (0, 255, 255), (255, 128, 0), (128, 0, 255),
     ]
 
-    pixels.fill((0, 0, 0))
-    for idx, color, label in corners:
-        pixels[idx] = color
-        print(f"  {label}")
-    pixels.show()
+    for group in range(8):
+        clear()
+        start = group * 8
+        for j in range(8):
+            pixels[start + j] = colors[group]
+        pixels.show()
+        print(f"  pixels {start:3d}-{start+7:3d}  (group {group})")
+        time.sleep(PAUSE)
+
+    print()
+    print("  Q7: Does each group form a horizontal row?")
+    print("  Q8: Or does each group form a vertical column?")
 
     input("\nPress Enter to continue...\n")
-
-    pixels.fill((0, 0, 0))
-    pixels.show()
+    clear()
 
 
-def test_full_sweep(pixels):
-    """Sweep all 192 pixels quickly to see the overall wiring path."""
-    print("=== Test 4: Full sweep (all 192 pixels) ===")
-    print("Fast sweep to visualize the entire wiring path.\n")
+def test_full_sweep():
+    """Fast sweep all 192 pixels."""
+    print("=== Test 5: Full sweep (all 192 pixels) ===")
+    print("Fast sweep: red=panel0, green=panel1, blue=panel2.\n")
 
     for i in range(192):
-        pixels.fill((0, 0, 0))
-        # Color changes per panel: red / green / blue
+        clear()
         if i < 64:
             color = (255, 0, 0)
         elif i < 128:
@@ -114,74 +153,36 @@ def test_full_sweep(pixels):
         pixels.show()
         time.sleep(0.03)
 
-    pixels.fill((0, 0, 0))
-    pixels.show()
-    print("  Sweep complete.")
-    print()
-
-
-def test_grid_rows(pixels):
-    """Light up one logical row at a time using raw indices.
-
-    If standard row-serpentine: row N = pixels N*8 .. N*8+7 within each panel.
-    This test lights them per-panel so you can see if rows are horizontal.
-    """
-    print("=== Test 5: Row test (per panel) ===")
-    print("Lights pixels 0-7, then 8-15, etc. within panel 0.")
-    print("Each group of 8 should form a horizontal row.\n")
-
-    colors = [
-        (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
-        (255, 0, 255), (0, 255, 255), (255, 128, 0), (128, 0, 255),
-    ]
-
-    for row in range(8):
-        pixels.fill((0, 0, 0))
-        start = row * 8
-        for col in range(8):
-            pixels[start + col] = colors[row]
-        pixels.show()
-        print(f"  pixels {start:3d}-{start+7:3d}  (row {row})")
-        time.sleep(PAUSE)
-
-    input("\nPress Enter to continue...\n")
-
-    pixels.fill((0, 0, 0))
-    pixels.show()
+    clear()
+    print("  Sweep complete.\n")
 
 
 def main():
     print()
     print("=" * 60)
     print("  WS2812B Panel Wiring Diagnostic")
-    print("  3x 8x8 (192 pixels)")
+    print("  3x 8x8 (192 pixels) — using SPI directly")
     print("=" * 60)
     print()
-    print("This will light LEDs in specific patterns so you can")
-    print("observe the physical wiring and report back.")
-    print()
 
-    pixels = get_pixels(BRIGHTNESS)
-
-    test_panel_boundaries(pixels)
-    test_first_16(pixels)
-    test_corners(pixels)
-    test_grid_rows(pixels)
-    test_full_sweep(pixels)
+    test_panel_boundaries()
+    test_first_16()
+    test_corners()
+    test_rows()
+    test_full_sweep()
 
     print("=" * 60)
     print("  Diagnostic complete. Please report:")
     print()
-    print("  1. Where did pixel 0 light up? (corner & panel)")
-    print("  2. Did 0-7 go left-to-right or top-to-bottom?")
-    print("  3. Did 8-15 reverse direction (serpentine)?")
-    print("  4. Were panel 0/1/2 left/middle/right?")
-    print("  5. In test 5, did each group of 8 form a horizontal row?")
+    print("  1. Panel order: left/middle/right = which colors?")
+    print("  2. Pixel 0 location (which corner of which panel?)")
+    print("  3. Direction of 0->7 (horizontal or vertical?)")
+    print("  4. Did 8->15 reverse? (serpentine yes/no)")
+    print("  5. Did groups of 8 form rows or columns?")
     print("=" * 60)
     print()
 
-    pixels.fill((0, 0, 0))
-    pixels.show()
+    clear()
 
 
 if __name__ == "__main__":
