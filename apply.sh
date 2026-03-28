@@ -20,15 +20,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Paths
+# Paths — on pi-gen images, RQB2-bin/* is installed to /usr/bin/
+#   and RQB2-config/* to /usr/config/. Demos clone into ~/RasQberry-Two/demos/.
 ENV_FILE="/usr/config/rasqberry_environment.env"
 LED_UTILS_DEST="/usr/bin/rq_led_utils.py"
-RASQBERRY_HOME="/home/rasqberry"
-REPO_DIR="$RASQBERRY_HOME/RasQberry-Two"
-PAINTER_DIR="$REPO_DIR/demos/led-painter"
-RQBIN_DIR="$REPO_DIR/RQB2-bin"
-# Also check system-installed location
-RQBIN_SYSTEM="/usr/bin"
+IBM_DEMO_DEST="/usr/bin/neopixel_spi_IBMtestFunc_3x8x8.py"
+
+# Detect user home (rasqberry on image, or current user)
+if [ -d "/home/rasqberry" ]; then
+    RASQBERRY_HOME="/home/rasqberry"
+else
+    RASQBERRY_HOME="$HOME"
+fi
+PAINTER_DIR="$RASQBERRY_HOME/RasQberry-Two/demos/led-painter"
 
 # Source files (in same directory as this script)
 SRC_LED_UTILS="$SCRIPT_DIR/rq_led_utils_3x8x8.py"
@@ -109,6 +113,7 @@ if $REVERT; then
     restore_backup "$ENV_FILE"
     restore_backup "$LED_UTILS_DEST"
     [ -f "$PAINTER_DIR/LED_array_indices.py" ] && restore_backup "$PAINTER_DIR/LED_array_indices.py"
+    restore_backup "$IBM_DEMO_DEST"
     echo ""
     info "Revert complete. Original quad/single panel layout restored."
     exit 0
@@ -158,12 +163,6 @@ else
     fi
 fi
 
-# Also patch the repo copy if it exists
-if [ -f "$RQBIN_DIR/rq_led_utils.py" ]; then
-    backup_and_copy "$SRC_LED_UTILS" "$RQBIN_DIR/rq_led_utils.py"
-    $DRY_RUN || info "Also patched $RQBIN_DIR/rq_led_utils.py"
-fi
-
 # --- 3. Patch LED Painter ---
 
 echo "3. Patching LED Painter pixel mapping ..."
@@ -175,18 +174,15 @@ else
     skip "LED Painter not installed at $PAINTER_DIR (run it once to install, then re-run this script)"
 fi
 
-# --- 4. Copy IBM demo ---
+# --- 4. Copy IBM demo to /usr/bin/ (where RQB2-bin/* is installed) ---
 
 echo "4. Installing adapted IBM demo ..."
 
-if [ -d "$RQBIN_DIR" ]; then
-    cp "$SRC_IBM_DEMO" "$RQBIN_DIR/neopixel_spi_IBMtestFunc_3x8x8.py"
-    $DRY_RUN || info "IBM demo copied to $RQBIN_DIR/"
-elif [ -d "$REPO_DIR/examples" ]; then
-    cp "$SRC_IBM_DEMO" "$REPO_DIR/examples/neopixel_spi_IBMtestFunc_3x8x8.py"
-    $DRY_RUN || info "IBM demo copied to $REPO_DIR/examples/"
+if $DRY_RUN; then
+    echo "  would copy: $SRC_IBM_DEMO -> $IBM_DEMO_DEST"
 else
-    skip "Could not find RasQberry-Two directory at $REPO_DIR"
+    backup_and_copy "$SRC_IBM_DEMO" "$IBM_DEMO_DEST"
+    info "IBM demo installed to $IBM_DEMO_DEST"
 fi
 
 # --- Done ---
@@ -197,7 +193,7 @@ if $DRY_RUN; then
 else
     info "All done! Your 3x WS2812B-64 (8x8) panels are configured."
     echo ""
-    echo "  Test with:  python3 $RQBIN_DIR/neopixel_spi_IBMtestFunc_3x8x8.py"
+    echo "  Test with:  python3 $IBM_DEMO_DEST"
     echo "  Revert:     sudo bash $SCRIPT_DIR/apply.sh --revert"
     echo ""
     echo "  If LED Painter was not installed yet, install it first then re-run:"
