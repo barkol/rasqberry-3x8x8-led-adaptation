@@ -187,15 +187,16 @@ class VirtualLEDMatrix:
 
     def map_xy_to_pixel_triple_8x8(self, x, y):
         """
-        Map (x, y) coordinates to pixel index for 3x WS2812B-64 (8x8) panels.
+        Map screen (x, y) to pixel index for virtual GUI display.
 
-        Three 8x8 panels daisy-chained left-to-right, progressive row wiring
-        (all rows left-to-right, no serpentine, Y flipped).
+        The real LED mapping flips Y (7-y) because panels are mounted
+        upside-down. The virtual GUI renders on screen (no physical flip),
+        so we use the un-flipped mapping here. The shared memory already
+        contains data written with the flipped mapping by rq_led_utils.
         """
         panel = x // 8
         col_in_panel = x % 8
-        flipped_y = 7 - y
-        return panel * 64 + flipped_y * 8 + col_in_panel
+        return panel * 64 + y * 8 + col_in_panel
 
     def map_xy_to_pixel_quad(self, x, y):
         """
