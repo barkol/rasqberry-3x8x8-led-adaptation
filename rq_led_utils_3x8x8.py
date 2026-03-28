@@ -438,14 +438,13 @@ def map_xy_to_pixel_triple_8x8(x, y):
     """
     Map (x, y) coordinates to LED pixel index for 3x WS2812B-64 (8x8) panel layout.
 
-    Layout: Three 8x8 panels daisy-chained left-to-right with row-serpentine wiring.
+    Layout: Three 8x8 panels daisy-chained left-to-right with progressive row wiring.
     - Panel 0: pixels 0-63   (columns 0-7)
     - Panel 1: pixels 64-127  (columns 8-15)
     - Panel 2: pixels 128-191 (columns 16-23)
 
-    Each panel's serpentine:
-    - Even rows (0, 2, 4, 6): left to right
-    - Odd rows  (1, 3, 5, 7): right to left
+    Each panel's wiring (progressive, NOT serpentine):
+    - All rows go left to right
     - Pixel 0 at top-left corner
 
     Args:
@@ -462,12 +461,7 @@ def map_xy_to_pixel_triple_8x8(x, y):
     panel = x // 8
     col_in_panel = x % 8
 
-    if y % 2 == 0:
-        pixel_in_row = col_in_panel
-    else:
-        pixel_in_row = 7 - col_in_panel
-
-    return panel * 64 + y * 8 + pixel_in_row
+    return panel * 64 + y * 8 + col_in_panel
 
 
 def map_xy_to_pixel(x, y, layout=None):

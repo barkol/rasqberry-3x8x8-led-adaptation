@@ -31,19 +31,13 @@ spi = board.SPI()
 def plotcalc(y, x, color, pixels, rainbow):
     """Map logical coordinate (y, x) to physical LED index for 3x WS2812B-64 panels.
 
-    Panels are 8x8, daisy-chained left-to-right, with serpentine row wiring:
-      - even rows: left to right
-      - odd rows:  right to left
+    Panels are 8x8, daisy-chained left-to-right, progressive row wiring
+    (all rows left-to-right, no serpentine).
     """
     panel = x // 8
     col_in_panel = x % 8
 
-    if y % 2 == 0:
-        pixel_in_row = col_in_panel
-    else:
-        pixel_in_row = 7 - col_in_panel
-
-    i = panel * 64 + y * 8 + pixel_in_row
+    i = panel * 64 + y * 8 + col_in_panel
 
     if rainbow:
       if (y == 7):
