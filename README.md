@@ -1,5 +1,7 @@
 # 3x WS2812B-64 (8x8) Panel Adaptation for RasQberry-Two
 
+![3x 8x8 LED panels connected to RasQberry](three_8x8.jpg)
+
 Adapts [RasQberry-Two](https://github.com/JanLahmann/RasQberry-Two) LED demos
 for **3 daisy-chained WS2812B-64 8x8 panels** instead of the original quad 4x12
 panel layout.
