@@ -5,7 +5,7 @@ set -euo pipefail
 # apply.sh - Apply 3x WS2812B-64 (8x8) panel adaptation to RasQberry-Two
 #
 # Replaces the original quad (4x12) / single (column-serpentine) LED mapping
-# with a triple 8x8 row-serpentine layout.
+# with a triple 8x8 progressive-row layout (Y flipped).
 #
 # What this script does:
 #   1. Patches /usr/config/rasqberry_environment.env (LED_MATRIX_LAYOUT, Y_FLIP)
