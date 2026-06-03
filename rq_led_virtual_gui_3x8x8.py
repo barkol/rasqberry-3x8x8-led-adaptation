@@ -189,13 +189,12 @@ class VirtualLEDMatrix:
         """
         Map screen (x, y) to pixel index for virtual GUI display.
 
-        The real LED mapping flips Y (7-y) because panels are mounted
-        upside-down. The virtual GUI renders on screen (no physical flip),
-        so we use the un-flipped mapping here. The shared memory already
-        contains data written with the flipped mapping by rq_led_utils.
+        Must match the physical mapping in rq_led_utils.py so the virtual
+        display mirrors what appears on the real LEDs.
+        Assembly is mounted upside-down (180° rotation).
         """
-        panel = x // 8
-        col_in_panel = x % 8
+        panel = 2 - x // 8
+        col_in_panel = 7 - x % 8
         return panel * 64 + y * 8 + col_in_panel
 
     def map_xy_to_pixel_quad(self, x, y):

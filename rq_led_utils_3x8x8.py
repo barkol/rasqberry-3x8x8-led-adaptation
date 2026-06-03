@@ -73,6 +73,7 @@ def get_led_config():
         'matrix_width': int(config.get('LED_MATRIX_WIDTH', 24)),
         'matrix_height': int(config.get('LED_MATRIX_HEIGHT', 8)),
         'y_flip': config.get('LED_MATRIX_Y_FLIP', 'false').lower() == 'true',
+        'rotation': int(config.get('LED_MATRIX_ROTATION', 0)),
         'n_qubit': int(config.get('N_QUBIT', 192)),
         'led_default_brightness': float(config.get('LED_DEFAULT_BRIGHTNESS', 0.4)),
         'led_virtual': config.get('LED_VIRTUAL', 'false').lower() == 'true',
@@ -443,10 +444,11 @@ def map_xy_to_pixel_triple_8x8(x, y):
     - Panel 1: pixels 64-127  (columns 8-15)
     - Panel 2: pixels 128-191 (columns 16-23)
 
-    Each panel's wiring (progressive, NOT serpentine):
-    - All rows go left to right
-    - Pixel 0 at bottom-left corner (panels mounted upside-down)
-    - Y is flipped: logical row 0 (top) maps to physical row 7 (bottom)
+    Supports LED_MATRIX_ROTATION config (0, 1, 2, 3) for different mounting orientations:
+    - 0: Original (panels upside-down, pixel 0 at bottom-left)
+    - 1: Y-flip only (vertical flip)
+    - 2: X-flip only (horizontal mirror)
+    - 3: 180° rotation (both axes flipped)
 
     Args:
         x (int): Column index (0-23, left to right)
@@ -459,11 +461,25 @@ def map_xy_to_pixel_triple_8x8(x, y):
         print(f"Warning: Coordinate ({x}, {y}) out of bounds for triple_8x8 layout")
         return None
 
-    panel = x // 8
-    col_in_panel = x % 8
-    flipped_y = 7 - y
+    config = get_led_config()
+    rotation = config.get('rotation', 0)
 
-    return panel * 64 + flipped_y * 8 + col_in_panel
+    if rotation == 1:
+        panel = x // 8
+        col_in_panel = x % 8
+        return panel * 64 + y * 8 + col_in_panel
+    elif rotation == 2:
+        panel = 2 - x // 8
+        col_in_panel = 7 - x % 8
+        return panel * 64 + (7 - y) * 8 + col_in_panel
+    elif rotation == 3:
+        panel = 2 - x // 8
+        col_in_panel = 7 - x % 8
+        return panel * 64 + y * 8 + col_in_panel
+    else:
+        panel = x // 8
+        col_in_panel = x % 8
+        return panel * 64 + (7 - y) * 8 + col_in_panel
 
 
 def map_xy_to_pixel(x, y, layout=None):
@@ -659,7 +675,7 @@ def display_scrolling_text(pixels, text, duration_seconds=30, scroll_speed=0.1, 
                 for y in range(min(height, 7)):  # Font is 7 pixels tall
                     if col_data & (1 << y):
                         # Convert x,y to LED index using common mapping function
-                        led_index = map_xy_to_pixel(x, y, layout)
+                        led_index = map_xy_to_pixel(x, height - 1 - y, layout)
                         if led_index is not None:
                             pixels[led_index] = color
 
@@ -729,7 +745,7 @@ def display_static_text(pixels, text, duration_seconds=5, color=(255, 255, 255),
         # Display this column on the LED matrix
         for y in range(min(height, 7)):  # Font is 7 pixels tall
             if col_data & (1 << y):
-                led_index = map_xy_to_pixel(x, y, layout)
+                led_index = map_xy_to_pixel(x, height - 1 - y, layout)
                 if led_index is not None:
                     pixels[led_index] = color
 
@@ -796,7 +812,7 @@ def display_flashing_text(pixels, text, flash_count=5, flash_speed=0.3, color=(2
 
             for y in range(min(height, 7)):
                 if col_data & (1 << y):
-                    led_index = map_xy_to_pixel(x, y, layout)
+                    led_index = map_xy_to_pixel(x, height - 1 - y, layout)
                     if led_index is not None:
                         pixels[led_index] = color
 
@@ -915,7 +931,7 @@ def display_scrolling_text_rainbow(pixels, text, duration_seconds=30, scroll_spe
                 # Display this column on the LED matrix
                 for y in range(min(height, 7)):
                     if col_data & (1 << y):
-                        led_index = map_xy_to_pixel(x, y, layout)
+                        led_index = map_xy_to_pixel(x, height - 1 - y, layout)
                         if led_index is not None:
                             pixels[led_index] = color
 
@@ -994,7 +1010,7 @@ def display_static_text_rainbow(pixels, text, duration_seconds=5, center=True, c
             # Display this column on the LED matrix
             for y in range(min(height, 7)):
                 if col_data & (1 << y):
-                    led_index = map_xy_to_pixel(x, y, layout)
+                    led_index = map_xy_to_pixel(x, height - 1 - y, layout)
                     if led_index is not None:
                         pixels[led_index] = color
 
@@ -1074,7 +1090,7 @@ def display_text_gradient(pixels, text, duration_seconds=5, color1=(255, 0, 0), 
         # Display this column on the LED matrix
         for y in range(min(height, 7)):
             if col_data & (1 << y):
-                led_index = map_xy_to_pixel(x, y, layout)
+                led_index = map_xy_to_pixel(x, height - 1 - y, layout)
                 if led_index is not None:
                     pixels[led_index] = color
 
