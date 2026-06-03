@@ -1,0 +1,18 @@
+[Unit]
+Description=RasQberry Pride Clock on LED Matrix
+After=rasqberry-ip-display.service
+Wants=rasqberry-ip-display.service
+
+[Service]
+Type=simple
+User=root
+# Start after IP display finishes (it runs for ~60s)
+ExecStartPre=/bin/sleep 70
+ExecStart=/home/rasqberry/RasQberry-Two/venv/RQB2/bin/python3 /usr/bin/led_clock.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
